@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-const n = 10000
+const n = 1000000
 
 func TestPanicEncodeTraces(t *testing.T) {
 	var wg sync.WaitGroup
@@ -25,8 +25,7 @@ func TestPanicEncodeTraces(t *testing.T) {
 }
 
 func TestPanicSendTraces(t *testing.T) {
-	transport := newHTTPTransport(defaultHostname, defaultPort)
-	transport.traceURL = "http://localhost:8126/v0.0/traces"
+	_, transport := getTestTracer()
 
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
