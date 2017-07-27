@@ -83,7 +83,7 @@ func TestTracesAgentIntegration(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		transport := newHTTPTransport(defaultHostname, defaultPort)
+		transport := NewHTTPTransport(defaultHostname, defaultPort)
 		response, err := transport.SendTraces(tc.payload)
 		assert.NoError(err)
 		assert.NotNil(response)
@@ -93,7 +93,7 @@ func TestTracesAgentIntegration(t *testing.T) {
 
 func TestAPIDowngrade(t *testing.T) {
 	assert := assert.New(t)
-	transport := newHTTPTransport(defaultHostname, defaultPort)
+	transport := NewHTTPTransport(defaultHostname, defaultPort)
 	transport.traceURL = "http://localhost:8126/v0.0/traces"
 
 	// if we get a 404 we should downgrade the API
@@ -106,7 +106,7 @@ func TestAPIDowngrade(t *testing.T) {
 
 func TestEncoderDowngrade(t *testing.T) {
 	assert := assert.New(t)
-	transport := newHTTPTransport(defaultHostname, defaultPort)
+	transport := NewHTTPTransport(defaultHostname, defaultPort)
 	transport.traceURL = "http://localhost:8126/v0.2/traces"
 
 	// if we get a 415 because of a wrong encoder, we should downgrade the encoder
@@ -120,7 +120,7 @@ func TestEncoderDowngrade(t *testing.T) {
 func TestTransportServices(t *testing.T) {
 	assert := assert.New(t)
 
-	transport := newHTTPTransport(defaultHostname, defaultPort)
+	transport := NewHTTPTransport(defaultHostname, defaultPort)
 
 	response, err := transport.SendServices(getTestServices())
 	assert.NoError(err)
@@ -131,7 +131,7 @@ func TestTransportServices(t *testing.T) {
 func TestTransportServicesDowngrade_0_0(t *testing.T) {
 	assert := assert.New(t)
 
-	transport := newHTTPTransport(defaultHostname, defaultPort)
+	transport := NewHTTPTransport(defaultHostname, defaultPort)
 	transport.serviceURL = "http://localhost:8126/v0.0/services"
 
 	response, err := transport.SendServices(getTestServices())
@@ -143,7 +143,7 @@ func TestTransportServicesDowngrade_0_0(t *testing.T) {
 func TestTransportServicesDowngrade_0_2(t *testing.T) {
 	assert := assert.New(t)
 
-	transport := newHTTPTransport(defaultHostname, defaultPort)
+	transport := NewHTTPTransport(defaultHostname, defaultPort)
 	transport.serviceURL = "http://localhost:8126/v0.2/services"
 
 	response, err := transport.SendServices(getTestServices())
@@ -154,7 +154,7 @@ func TestTransportServicesDowngrade_0_2(t *testing.T) {
 
 func TestTransportHeaders(t *testing.T) {
 	assert := assert.New(t)
-	transport := newHTTPTransport(defaultHostname, defaultPort)
+	transport := NewHTTPTransport(defaultHostname, defaultPort)
 
 	// msgpack is the default Header
 	contentType := transport.headers["Content-Type"]
@@ -163,7 +163,7 @@ func TestTransportHeaders(t *testing.T) {
 
 func TestTransportEncoderPool(t *testing.T) {
 	assert := assert.New(t)
-	transport := newHTTPTransport(defaultHostname, defaultPort)
+	transport := NewHTTPTransport(defaultHostname, defaultPort)
 
 	// MsgpackEncoder is the default encoder of the pool
 	encoder := transport.pool.Borrow()
@@ -172,7 +172,7 @@ func TestTransportEncoderPool(t *testing.T) {
 
 func TestTransportSwitchEncoder(t *testing.T) {
 	assert := assert.New(t)
-	transport := newHTTPTransport(defaultHostname, defaultPort)
+	transport := NewHTTPTransport(defaultHostname, defaultPort)
 	transport.changeEncoder(JSON_ENCODER)
 
 	// MsgpackEncoder is the default encoder of the pool
@@ -202,7 +202,7 @@ func TestTraceCountHeader(t *testing.T) {
 	hostname := hostItems[0]
 	port := hostItems[1]
 	for _, tc := range testCases {
-		transport := newHTTPTransport(hostname, port)
+		transport := NewHTTPTransport(hostname, port)
 		response, err := transport.SendTraces(tc.payload)
 		assert.NoError(err)
 		assert.NotNil(response)

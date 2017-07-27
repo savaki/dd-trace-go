@@ -40,12 +40,12 @@ func NewTransport(hostname, port string) Transport {
 	if port == "" {
 		port = defaultPort
 	}
-	return newHTTPTransport(hostname, port)
+	return NewHTTPTransport(hostname, port)
 }
 
 // newDefaultTransport return a default transport for this tracing client
 func newDefaultTransport() Transport {
-	return newHTTPTransport(defaultHostname, defaultPort)
+	return NewHTTPTransport(defaultHostname, defaultPort)
 }
 
 type httpTransport struct {
@@ -59,8 +59,8 @@ type httpTransport struct {
 	compatibilityMode bool              // the Agent targets a legacy API for compatibility reasons
 }
 
-// newHTTPTransport returns an httpTransport for the given endpoint
-func newHTTPTransport(hostname, port string) *httpTransport {
+// NewHTTPTransport returns an httpTransport for the given endpoint
+func NewHTTPTransport(hostname, port string) *httpTransport {
 	// initialize the default EncoderPool with Encoder headers
 	pool, contentType := newEncoderPool(defaultEncoder, encoderPoolSize)
 	defaultHeaders := make(map[string]string)
