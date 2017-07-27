@@ -30,7 +30,7 @@ func getTestSpan() *Span {
 
 // getTestTrace returns a list of traces that is composed by ``traceN`` number
 // of traces, each one composed by ``size`` number of spans.
-func getTestTrace(traceN, size int) [][]*Span {
+func GetTestTrace(traceN, size int) [][]*Span {
 	var traces [][]*Span
 
 	for i := 0; i < traceN; i++ {
