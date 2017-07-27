@@ -25,7 +25,7 @@ type msgpackEncoder struct {
 	contentType string
 }
 
-func newMsgpackEncoder() *msgpackEncoder {
+func NewMsgpackEncoder() *msgpackEncoder {
 	buffer := &bytes.Buffer{}
 	encoder := codec.NewEncoder(buffer, &mh)
 
@@ -140,7 +140,7 @@ func (p *encoderPool) Borrow() Encoder {
 		case JSON_ENCODER:
 			encoder = newJSONEncoder()
 		case MSGPACK_ENCODER:
-			encoder = newMsgpackEncoder()
+			encoder = NewMsgpackEncoder()
 		}
 	}
 	return encoder

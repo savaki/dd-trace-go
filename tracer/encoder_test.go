@@ -16,7 +16,7 @@ func TestEncoderContentType(t *testing.T) {
 		contentType string
 	}{
 		{newJSONEncoder(), "application/json"},
-		{newMsgpackEncoder(), "application/msgpack"},
+		{NewMsgpackEncoder(), "application/msgpack"},
 	}
 
 	for _, tc := range testCases {
@@ -83,7 +83,7 @@ func TestMsgpackEncoding(t *testing.T) {
 
 	for _, tc := range testCases {
 		payload := getTestTrace(tc.traces, tc.size)
-		encoder := newMsgpackEncoder()
+		encoder := NewMsgpackEncoder()
 		err := encoder.EncodeTraces(payload)
 		assert.Nil(err)
 
@@ -135,8 +135,8 @@ func TestPoolReuseEncoder(t *testing.T) {
 
 func TestPoolSize(t *testing.T) {
 	pool, _ := newEncoderPool(MSGPACK_ENCODER, 1)
-	encoder := newMsgpackEncoder()
-	anotherEncoder := newMsgpackEncoder()
+	encoder := NewMsgpackEncoder()
+	anotherEncoder := NewMsgpackEncoder()
 
 	// put two encoders in the pool with a maximum size of 1
 	// doesn't hang the caller
@@ -149,7 +149,7 @@ func TestPoolReturn(t *testing.T) {
 
 	// an encoder can return in the pool
 	pool, _ := newEncoderPool(MSGPACK_ENCODER, 5)
-	encoder := newMsgpackEncoder()
+	encoder := NewMsgpackEncoder()
 	pool.pool <- encoder
 	pool.Return(encoder)
 

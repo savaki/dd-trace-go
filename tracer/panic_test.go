@@ -15,7 +15,7 @@ func TestPanicEncodeTraces(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			payload := getTestTrace(rand.Intn(3), rand.Intn(100))
-			encoder := newMsgpackEncoder()
+			encoder := NewMsgpackEncoder()
 			encoder.EncodeTraces(payload)
 		}()
 	}
