@@ -105,13 +105,20 @@ func (t *httpTransport) SendTraces(traces [][]*Span) (*http.Response, error) {
 		return nil, err
 	}
 
+	// TODO[manu]: Not production ready!
 	// prepare the client and send the payload
 	req, _ := http.NewRequest("POST", t.traceURL, encoder)
+	tr := &http.Transport{}
+	client := &http.Client{
+		Transport: tr,
+		// We have it in the original implementation
+		Timeout: defaultHTTPTimeout,
+	}
 	for header, value := range t.headers {
 		req.Header.Set(header, value)
 	}
 	req.Header.Set(traceCountHeader, strconv.Itoa(len(traces)))
-	response, err := t.client.Do(req)
+	response, err := client.Do(req)
 
 	// if we have an error, return an empty Response to protect against nil pointer dereference
 	if err != nil {
@@ -125,6 +132,7 @@ func (t *httpTransport) SendTraces(traces [][]*Span) (*http.Response, error) {
 		// Buffer the response body so the caller doesn't need to worry about
 		// reading and closing the response. This isn't very expensive because
 		// the responses from the Agent are always short.
+		tr.CancelRequest(req)
 		var buf bytes.Buffer
 		io.Copy(&buf, response.Body)
 		response.Body.Close()
