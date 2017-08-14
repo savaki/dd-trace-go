@@ -11,7 +11,7 @@ Requirements:
 * Docker
 * Rake
 * gometalinter – `go get -u github.com/alecthomas/gometalinter`
-* golint – go get -u github.com/golang/lint/golint
+* golint – `go get -u github.com/golang/lint/golint`
 * goconst – `go get -u github.com/jgautheron/goconst/cmd/goconst`
 * gas – `go get -u github.com/GoASTScanner/gas`
 * ineffassign – `go get -u github.com/gordonklaus/ineffassign`
