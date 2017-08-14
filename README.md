@@ -10,6 +10,12 @@ Requirements:
 * Go 1.7 or later
 * Docker
 * Rake
+* gometalinter – `go get -u github.com/alecthomas/gometalinter`
+* golint – go get -u github.com/golang/lint/golint
+* goconst – `go get -u github.com/jgautheron/goconst/cmd/goconst`
+* gas – `go get -u github.com/GoASTScanner/gas`
+* ineffassign – `go get -u github.com/gordonklaus/ineffassign`
+* gocyclo – `go get -u github.com/fzipp/gocyclo`
 
 ### Run the tests
 
@@ -30,7 +36,7 @@ This will only work if your working directory is in $GOPATH/src.
 Finally, run the tests:
 
 ```
-$ rake test
+$ rake ci
 ```
 
 ### Create a Branch
