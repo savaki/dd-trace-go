@@ -19,7 +19,7 @@ Requirements:
 
 ### Run the tests
 
-Start the Docker containers defined in `docker-compose.yml`:
+Start the containers defined in `docker-compose.yml`:
 
 ```
 $ docker-compose up -d
