@@ -1,9 +1,9 @@
-package elastictraced_test
+package elastictrace_test
 
 import (
 	"context"
 	"github.com/DataDog/dd-trace-go/tracer"
-	"github.com/DataDog/dd-trace-go/tracer/contrib/elastictraced"
+	"github.com/DataDog/dd-trace-go/tracer/contrib/olivere/elastictrace"
 	elasticv3 "gopkg.in/olivere/elastic.v3"
 	elasticv5 "gopkg.in/olivere/elastic.v5"
 )
@@ -11,7 +11,7 @@ import (
 // To start tracing elastic.v5 requests, create a new TracedHTTPClient that you will
 // use when initializing the elastic.Client.
 func Example_v5() {
-	tc := elastictraced.NewTracedHTTPClient("my-elasticsearch-service", tracer.DefaultTracer)
+	tc := elastictrace.NewTracedHTTPClient("my-elasticsearch-service", tracer.DefaultTracer)
 	client, _ := elasticv5.NewClient(
 		elasticv5.SetURL("http://127.0.0.1:9200"),
 		elasticv5.SetHttpClient(tc),
@@ -35,7 +35,7 @@ func Example_v5() {
 // To trace elastic.v3 you create a TracedHTTPClient in the same way but all requests must use
 // the DoC() call to pass the request context.
 func Example_v3() {
-	tc := elastictraced.NewTracedHTTPClient("my-elasticsearch-service", tracer.DefaultTracer)
+	tc := elastictrace.NewTracedHTTPClient("my-elasticsearch-service", tracer.DefaultTracer)
 	client, _ := elasticv3.NewClient(
 		elasticv3.SetURL("http://127.0.0.1:9200"),
 		elasticv3.SetHttpClient(tc),

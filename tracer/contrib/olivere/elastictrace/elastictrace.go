@@ -1,7 +1,7 @@
-// Package elastictraced provides tracing for the Elastic Elasticsearch client.
+// Package elastictrace provides tracing for the Elastic Elasticsearch client.
 // Supports v3 (gopkg.in/olivere/elastic.v3), v5 (gopkg.in/olivere/elastic.v5)
 // but with v3 you must use `DoC` on all requests to capture the request context.
-package elastictraced
+package elastictrace
 
 import (
 	"bytes"

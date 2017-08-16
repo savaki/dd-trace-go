@@ -1,4 +1,4 @@
-package elastictraced
+package elastictrace
 
 import (
 	"context"
