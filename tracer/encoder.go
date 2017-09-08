@@ -14,6 +14,8 @@ type Encoder interface {
 	EncodeServices(services map[string]Service) error
 	Read(p []byte) (int, error)
 	ContentType() string
+	Buffer() *bytes.Buffer
+	SetBuffer(*bytes.Buffer)
 }
 
 var mh codec.MsgpackHandle
@@ -59,6 +61,14 @@ func (e *msgpackEncoder) ContentType() string {
 	return e.contentType
 }
 
+func (e *msgpackEncoder) Buffer() *bytes.Buffer {
+	return e.buffer
+}
+
+func (e *msgpackEncoder) SetBuffer(b *bytes.Buffer) {
+	e.buffer = b
+}
+
 // jsonEncoder encodes a list of traces in JSON format
 type jsonEncoder struct {
 	buffer      *bytes.Buffer
@@ -99,6 +109,14 @@ func (e *jsonEncoder) Read(p []byte) (int, error) {
 // ContentType return the jsonEncoder content-type
 func (e *jsonEncoder) ContentType() string {
 	return e.contentType
+}
+
+func (e *jsonEncoder) Buffer() *bytes.Buffer {
+	return e.buffer
+}
+
+func (e *jsonEncoder) SetBuffer(b *bytes.Buffer) {
+	e.buffer = b
 }
 
 const (
