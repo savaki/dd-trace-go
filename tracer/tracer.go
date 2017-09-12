@@ -38,9 +38,11 @@ type Tracer struct {
 	transport Transport // is the transport mechanism used to delivery spans to the agent
 	sampler   sampler   // is the trace sampler to only keep some samples
 
-	DebugLoggingEnabled bool
-	enabled             bool // defines if the Tracer is enabled or not
-	enableMu            sync.RWMutex
+	debugMu             sync.RWMutex // protects the debugLoggingEnabled attribute while allowing concurrent reads
+	debugLoggingEnabled bool
+
+	enableMu sync.RWMutex
+	enabled  bool // defines if the Tracer is enabled or not
 
 	meta   map[string]string
 	metaMu sync.RWMutex
@@ -67,7 +69,7 @@ func NewTracerTransport(transport Transport) *Tracer {
 		enabled:             true,
 		transport:           transport,
 		sampler:             newAllSampler(),
-		DebugLoggingEnabled: false,
+		debugLoggingEnabled: false,
 
 		channels: newTracerChans(),
 
@@ -174,7 +176,8 @@ func (t *Tracer) NewRootSpan(name, service, resource string) *Span {
 	span := NewSpan(name, service, resource, spanID, spanID, 0, t)
 
 	span.buffer = newSpanBuffer(t.channels, 0, 0)
-	t.sampler.Sample(span)
+	t.Sample(span)
+	span.SetSamplingPriority(1) // [TODO:christian] introduce distributed sampling here
 	span.buffer.Push(span)
 
 	// Add the process id to all root spans
@@ -196,7 +199,8 @@ func (t *Tracer) NewChildSpan(name string, parent *Span) *Span {
 		span := NewSpan(name, "", name, spanID, spanID, spanID, t)
 
 		span.buffer = newSpanBuffer(t.channels, 0, 0)
-		t.sampler.Sample(span)
+		t.Sample(span)
+		span.SetSamplingPriority(1) // [TODO:christian] introduce distributed sampling here
 		span.buffer.Push(span)
 
 		return span
@@ -205,8 +209,11 @@ func (t *Tracer) NewChildSpan(name string, parent *Span) *Span {
 	parent.RLock()
 	// child that is correctly configured
 	span := NewSpan(name, parent.Service, name, spanID, parent.TraceID, parent.SpanID, parent.tracer)
+
 	// child sampling same as the parent
 	span.Sampled = parent.Sampled
+	span.SetSamplingPriority(parent.GetSamplingPriority())
+
 	span.parent = parent
 	span.buffer = parent.buffer
 	parent.RUnlock()
@@ -233,6 +240,20 @@ func (t *Tracer) NewChildSpanWithContext(name string, ctx context.Context) (*Spa
 	return span, span.Context(ctx)
 }
 
+// SetDebugLogging will set the debug level
+func (t *Tracer) SetDebugLogging(debug bool) {
+	t.debugMu.Lock()
+	defer t.debugMu.Unlock()
+	t.debugLoggingEnabled = debug
+}
+
+// DebugLoggingEnabled returns true if the debug level is enabled and false otherwise.
+func (t *Tracer) DebugLoggingEnabled() bool {
+	t.debugMu.RLock()
+	defer t.debugMu.RUnlock()
+	return t.debugLoggingEnabled
+}
+
 func (t *Tracer) getTraces() [][]*Span {
 	traces := make([][]*Span, 0, len(t.channels.trace))
 
@@ -250,7 +271,7 @@ func (t *Tracer) getTraces() [][]*Span {
 func (t *Tracer) flushTraces() {
 	traces := t.getTraces()
 
-	if t.DebugLoggingEnabled {
+	if t.DebugLoggingEnabled() {
 		log.Printf("Sending %d traces", len(traces))
 		for _, trace := range traces {
 			if len(trace) > 0 {
@@ -321,6 +342,11 @@ func (t *Tracer) flush() {
 func (t *Tracer) ForceFlush() {
 	t.forceFlushIn <- struct{}{}
 	<-t.forceFlushOut
+}
+
+// Sample samples a span with the internal sampler.
+func (t *Tracer) Sample(span *Span) {
+	t.sampler.Sample(span)
 }
 
 // worker periodically flushes traces and services to the transport.
