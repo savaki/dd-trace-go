@@ -1,7 +1,6 @@
 package tracer
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -56,7 +55,6 @@ type httpTransport struct {
 	legacyTraceURL    string            // the legacy delivery URL for traces
 	serviceURL        string            // the delivery URL for services
 	legacyServiceURL  string            // the legacy delivery URL for services
-	pool              *encoderPool      // encoding allocates lot of buffers (which might then be resized) so we use a pool so they can be re-used
 	client            *http.Client      // the HTTP client used in the POST
 	headers           map[string]string // the Transport headers
 	compatibilityMode bool              // the Agent targets a legacy API for compatibility reasons
@@ -65,9 +63,8 @@ type httpTransport struct {
 // newHTTPTransport returns an httpTransport for the given endpoint
 func newHTTPTransport(hostname, port string) *httpTransport {
 	// initialize the default EncoderPool with Encoder headers
-	pool, contentType := newEncoderPool(defaultEncoder, encoderPoolSize)
 	defaultHeaders := map[string]string{
-		"Content-Type":                  contentType,
+		"Content-Type":                  "application/msgpack",
 		"Datadog-Meta-Lang":             ext.Lang,
 		"Datadog-Meta-Lang-Version":     ext.LangVersion,
 		"Datadog-Meta-Lang-Interpreter": ext.Interpreter,
@@ -79,7 +76,6 @@ func newHTTPTransport(hostname, port string) *httpTransport {
 		legacyTraceURL:   fmt.Sprintf("http://%s:%s/v0.2/traces", hostname, port),
 		serviceURL:       fmt.Sprintf("http://%s:%s/v0.3/services", hostname, port),
 		legacyServiceURL: fmt.Sprintf("http://%s:%s/v0.2/services", hostname, port),
-		pool:             pool,
 		client: &http.Client{
 			Timeout: defaultHTTPTimeout,
 		},
@@ -94,27 +90,13 @@ func (t *httpTransport) SendTraces(traces [][]*Span) (*http.Response, error) {
 	}
 
 	// borrow an encoder
-	encoder := t.pool.Borrow()
-	encoderBuffer := encoder.Buffer()
-	defer func() {
-		// We set the encoder's buffer to the old one before returning the encoder to the pool
-		encoder.SetBuffer(encoderBuffer)
-		t.pool.Return(encoder)
-	}()
+	encoder := newMsgpackEncoder()
 
 	// encode the spans and return the error if any
 	err := encoder.EncodeTraces(traces)
 	if err != nil {
 		return nil, err
 	}
-
-	// When we send the encoder as the request body, the persistConn.writeLoop() goroutine
-	// can theoretically read the underlying buffer whereas the encoder has been returned to the pool.
-	// This can lead to a race condition and make the app panicking.
-	// That's why we create a new buffer here, though we use the same slice of bytes to avoid allocating new memory.
-	// It's fine here because the two functions that can happen at the same time (bytes.Reset and bytes.Read),
-	// doesn't modify the underlying data.
-	encoder.SetBuffer(bytes.NewBuffer(encoderBuffer.Bytes()))
 
 	// prepare the client and send the payload
 	req, _ := http.NewRequest("POST", t.traceURL, encoder)
@@ -133,7 +115,6 @@ func (t *httpTransport) SendTraces(traces [][]*Span) (*http.Response, error) {
 	// if we got a 404 we should downgrade the API to a stable version (at most once)
 	if (response.StatusCode == 404 || response.StatusCode == 415) && !t.compatibilityMode {
 		log.Printf("calling the endpoint '%s' but received %d; downgrading the API\n", t.traceURL, response.StatusCode)
-		t.apiDowngrade()
 		return t.SendTraces(traces)
 	}
 
@@ -150,25 +131,7 @@ func (t *httpTransport) SendServices(services map[string]Service) (*http.Respons
 	}
 
 	// Encode the service table
-	encoder := t.pool.Borrow()
-	encoderBuffer := encoder.Buffer()
-	defer func() {
-		// We set the encoder's buffer to the old one before returning the encoder to the pool
-		encoder.SetBuffer(encoderBuffer)
-		t.pool.Return(encoder)
-	}()
-
-	if err := encoder.EncodeServices(services); err != nil {
-		return nil, err
-	}
-
-	// When we send the encoder as the request body, the persistConn.writeLoop() goroutine
-	// can theoretically read the underlying buffer whereas the encoder has been returned to the pool.
-	// This can lead to a race condition and make the app panicking.
-	// That's why we create a new buffer here, though we use the same slice of bytes to avoid allocating new memory.
-	// It's fine here because the two functions that can happen at the same time are bytes.Reset and bytes.Read,
-	// and they doesn't modify the underlying data.
-	encoder.SetBuffer(bytes.NewBuffer(encoderBuffer.Bytes()))
+	encoder := newMsgpackEncoder()
 
 	// Send it
 	req, err := http.NewRequest("POST", t.serviceURL, encoder)
@@ -188,7 +151,6 @@ func (t *httpTransport) SendServices(services map[string]Service) (*http.Respons
 	// Downgrade if necessary
 	if (response.StatusCode == 404 || response.StatusCode == 415) && !t.compatibilityMode {
 		log.Printf("calling the endpoint '%s' but received %d; downgrading the API\n", t.traceURL, response.StatusCode)
-		t.apiDowngrade()
 		return t.SendServices(services)
 	}
 
@@ -202,23 +164,4 @@ func (t *httpTransport) SendServices(services map[string]Service) (*http.Respons
 // SetHeader sets the internal header for the httpTransport
 func (t *httpTransport) SetHeader(key, value string) {
 	t.headers[key] = value
-}
-
-// changeEncoder switches the internal encoders pool so that a different API with different
-// format can be targeted, preventing failures because of outdated agents
-func (t *httpTransport) changeEncoder(encoderType int) {
-	pool, contentType := newEncoderPool(encoderType, encoderPoolSize)
-	t.pool = pool
-	t.headers["Content-Type"] = contentType
-}
-
-// apiDowngrade downgrades the used encoder and API level. This method must fallback to a safe
-// encoder and API, so that it will success despite users' configurations. This action
-// ensures that the compatibility mode is activated so that the downgrade will be
-// executed only once.
-func (t *httpTransport) apiDowngrade() {
-	t.compatibilityMode = true
-	t.traceURL = t.legacyTraceURL
-	t.serviceURL = t.legacyServiceURL
-	t.changeEncoder(legacyEncoder)
 }
