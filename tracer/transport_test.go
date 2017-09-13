@@ -161,27 +161,6 @@ func TestTransportHeaders(t *testing.T) {
 	assert.Equal("application/msgpack", contentType)
 }
 
-func TestTransportEncoderPool(t *testing.T) {
-	assert := assert.New(t)
-	transport := newHTTPTransport(defaultHostname, defaultPort)
-
-	// MsgpackEncoder is the default encoder of the pool
-	encoder := transport.pool.Borrow()
-	assert.Equal("application/msgpack", encoder.ContentType())
-}
-
-func TestTransportSwitchEncoder(t *testing.T) {
-	assert := assert.New(t)
-	transport := newHTTPTransport(defaultHostname, defaultPort)
-	transport.changeEncoder(JSON_ENCODER)
-
-	// MsgpackEncoder is the default encoder of the pool
-	encoder := transport.pool.Borrow()
-	contentType := transport.headers["Content-Type"]
-	assert.Equal("application/json", encoder.ContentType())
-	assert.Equal("application/json", contentType)
-}
-
 func TestTraceCountHeader(t *testing.T) {
 	assert := assert.New(t)
 
