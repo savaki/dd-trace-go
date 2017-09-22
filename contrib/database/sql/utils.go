@@ -3,8 +3,12 @@ package sql
 import (
 	"database/sql/driver"
 	"errors"
+	"fmt"
+	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/DataDog/dd-trace-go/tracer"
 )
 
 func newDSNAndService(dsn, service string) string {
@@ -33,4 +37,36 @@ func stringInSlice(list []string, s string) bool {
 	sort.Strings(list)
 	i := sort.SearchStrings(list, s)
 	return i < len(list) && list[i] == s
+}
+
+// getTracer returns either the tracer passed as the last argument or a default tracer.
+func getTracer(tracers []*tracer.Tracer) *tracer.Tracer {
+	var t *tracer.Tracer
+	if len(tracers) == 0 || (len(tracers) > 0 && tracers[0] == nil) {
+		t = tracer.DefaultTracer
+	} else {
+		t = tracers[0]
+	}
+	return t
+}
+
+// getDriverName returns the driver type.
+func getDriverName(driver driver.Driver) string {
+	if driver == nil {
+		return ""
+	}
+	driverType := fmt.Sprintf("%s", reflect.TypeOf(driver))
+	switch driverType {
+	case "*mysql.MySQLDriver":
+		return "mysql"
+	case "*pq.Driver":
+		return "postgres"
+	default:
+		return ""
+	}
+}
+
+// getTraceDriverName add the suffix "Traced" to the driver name.
+func getTraceDriverName(driverName string) string {
+	return driverName + "Traced"
 }
