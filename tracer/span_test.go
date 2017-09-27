@@ -98,16 +98,14 @@ func TestSpanSetMetric(t *testing.T) {
 
 	// check the map is properly initialized
 	span.SetMetric("bytes", 1024.42)
-	assert.Equal(2, len(span.Metrics))
+	assert.Equal(1, len(span.Metrics))
 	assert.Equal(1024.42, span.Metrics["bytes"])
-	assert.Equal(0.0, span.Metrics["_sampling_priority"]) // [FIXME:christian] audit this
 
 	// operating on a finished span is a no-op
 	span.Finish()
 	span.SetMetric("finished.test", 1337)
-	assert.Equal(2, len(span.Metrics))
+	assert.Equal(1, len(span.Metrics))
 	assert.Equal(0.0, span.Metrics["finished.test"])
-	assert.Equal(0.0, span.Metrics["_sampling_priority"]) // [FIXME:christian] audit this
 }
 
 func TestSpanError(t *testing.T) {
