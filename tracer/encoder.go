@@ -3,7 +3,6 @@ package tracer
 import (
 	"bytes"
 	"encoding/json"
-	"sync"
 
 	"github.com/ugorji/go/codec"
 )
@@ -15,15 +14,12 @@ type Encoder interface {
 	EncodeServices(services map[string]Service) error
 	Read(p []byte) (int, error)
 	ContentType() string
-	Buffer() *bytes.Buffer
-	SetBuffer(*bytes.Buffer)
 }
 
 var mh codec.MsgpackHandle
 
 // msgpackEncoder encodes a list of traces in Msgpack format
 type msgpackEncoder struct {
-	sync.Mutex
 	buffer      *bytes.Buffer
 	encoder     *codec.Encoder
 	contentType string
@@ -36,45 +32,29 @@ func newMsgpackEncoder() *msgpackEncoder {
 	return &msgpackEncoder{
 		buffer:      buffer,
 		encoder:     encoder,
-		contentType: "application/msgpack",
+		contentType: contentType(msgpackType),
 	}
 }
 
 // EncodeTraces serializes the given trace list into the internal buffer,
 // returning the error if any.
 func (e *msgpackEncoder) EncodeTraces(traces [][]*Span) error {
-	e.buffer.Reset()
 	return e.encoder.Encode(traces)
 }
 
 // EncodeServices serializes a service map into the internal buffer.
 func (e *msgpackEncoder) EncodeServices(services map[string]Service) error {
-	e.buffer.Reset()
 	return e.encoder.Encode(services)
 }
 
 // Read values from the internal buffer
 func (e *msgpackEncoder) Read(p []byte) (int, error) {
-	e.Lock()
-	defer e.Unlock()
 	return e.buffer.Read(p)
 }
 
 // ContentType return the msgpackEncoder content-type
 func (e *msgpackEncoder) ContentType() string {
 	return e.contentType
-}
-
-func (e *msgpackEncoder) Buffer() *bytes.Buffer {
-	e.Lock()
-	defer e.Unlock()
-	return e.buffer
-}
-
-func (e *msgpackEncoder) SetBuffer(b *bytes.Buffer) {
-	e.Lock()
-	defer e.Unlock()
-	e.buffer = b
 }
 
 // jsonEncoder encodes a list of traces in JSON format
@@ -92,20 +72,18 @@ func newJSONEncoder() *jsonEncoder {
 	return &jsonEncoder{
 		buffer:      buffer,
 		encoder:     encoder,
-		contentType: "application/json",
+		contentType: contentType(jsonType),
 	}
 }
 
 // EncodeTraces serializes the given trace list into the internal buffer,
 // returning the error if any.
 func (e *jsonEncoder) EncodeTraces(traces [][]*Span) error {
-	e.buffer.Reset()
 	return e.encoder.Encode(traces)
 }
 
 // EncodeServices serializes a service map into the internal buffer.
 func (e *jsonEncoder) EncodeServices(services map[string]Service) error {
-	e.buffer.Reset()
 	return e.encoder.Encode(services)
 }
 
@@ -119,62 +97,41 @@ func (e *jsonEncoder) ContentType() string {
 	return e.contentType
 }
 
-func (e *jsonEncoder) Buffer() *bytes.Buffer {
-	return e.buffer
-}
-
-func (e *jsonEncoder) SetBuffer(b *bytes.Buffer) {
-	e.buffer = b
-}
-
 const (
-	JSON_ENCODER = iota
-	MSGPACK_ENCODER
+	jsonType = iota
+	msgpackType
 )
 
-// EncoderPool is a pool meant to share the buffers required to encode traces.
-// It naively tries to cap the number of active encoders, but doesn't enforce
-// the limit. To use a pool, you should Borrow() for an encoder and then
-// Return() that encoder to the pool. Encoders in that pool should honor
-// the Encoder interface.
-type encoderPool struct {
-	encoderType int
-	pool        chan Encoder
-}
-
-func newEncoderPool(encoderType, size int) (*encoderPool, string) {
-	pool := &encoderPool{
-		encoderType: encoderType,
-		pool:        make(chan Encoder, size),
-	}
-
-	// Borrow an encoder to retrieve the default ContentType
-	encoder := pool.Borrow()
-	pool.Return(encoder)
-
-	contentType := encoder.ContentType()
-	return pool, contentType
-}
-
-func (p *encoderPool) Borrow() Encoder {
-	var encoder Encoder
-
-	select {
-	case encoder = <-p.pool:
+func contentType(encoderType int) string {
+	switch encoderType {
+	case jsonType:
+		return "application/json"
+	case msgpackType:
+		return "application/msgpack"
 	default:
-		switch p.encoderType {
-		case JSON_ENCODER:
-			encoder = newJSONEncoder()
-		case MSGPACK_ENCODER:
-			encoder = newMsgpackEncoder()
-		}
+		return ""
 	}
-	return encoder
 }
 
-func (p *encoderPool) Return(e Encoder) {
-	select {
-	case p.pool <- e:
+// encoderFactory will provide a new encoder each time we want to flush traces or services.
+type encoderFactory struct {
+	EncoderType int
+}
+
+func newEncoderFactory(encoderType int) (*encoderFactory, string) {
+	return &encoderFactory{
+		EncoderType: encoderType,
+	}, contentType(encoderType)
+}
+
+// Get allocates and returns a new encoder
+func (f *encoderFactory) Get() Encoder {
+	switch f.EncoderType {
+	case jsonType:
+		return newJSONEncoder()
+	case msgpackType:
+		return newMsgpackEncoder()
 	default:
+		return nil
 	}
 }
